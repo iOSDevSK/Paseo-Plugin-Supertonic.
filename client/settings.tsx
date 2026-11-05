@@ -125,6 +125,15 @@ export function createSettingsScreen(playAudio: PlayAudio) {
                 {data?.voiceModeLinked ? "Hovorí cez Supertonic" : "Nepoužíva Supertonic"}
               </Text>
             </SettingsRow>
+            <SettingsRow
+              label="Apple rozpoznávanie reči"
+              hint={data?.stt.linked ? "Prepisuje diktovanie aj hlasový režim" : undefined}
+            >
+              <View style={styles.status}>
+                <Text style={styles.label}>{PHASE_LABELS[data?.stt.phase ?? "stopped"]}</Text>
+                <Text style={styles.muted}>{data?.stt.message ?? "Zisťujem stav"}</Text>
+              </View>
+            </SettingsRow>
             <SettingsAction
               label="Vypočuť ukážku"
               hint="Prehrá krátku vetu vybraným hlasom"
@@ -135,13 +144,19 @@ export function createSettingsScreen(playAudio: PlayAudio) {
           </SettingsCard>
         </SettingsSection>
 
-        <SettingsSection title="Hlas">
+        <SettingsSection title="Hlas a reč">
           <SettingsCard>
             <SettingsSwitch
               label="Použiť Supertonic v hlasovom režime"
               hint="Po vypnutí sa vráti predchádzajúci hlas Paseo"
               value={values.enabled}
               onValueChange={(enabled) => void update({ enabled })}
+            />
+            <SettingsSwitch
+              label="Apple rozpoznávanie reči"
+              hint="Prepis reči priamo na Macu cez Apple (macOS 26 a novší). Po vypnutí sa vráti predchádzajúce rozpoznávanie."
+              value={values.appleStt}
+              onValueChange={(appleStt) => void update({ appleStt })}
             />
             <SettingsSelect
               label="Hlas"
@@ -151,7 +166,7 @@ export function createSettingsScreen(playAudio: PlayAudio) {
             />
             <SettingsSelect
               label="Jazyk"
-              hint="Jazyk, v ktorom agent odpovedá"
+              hint="Jazyk, v ktorom hovoríte a agent odpovedá"
               value={values.lang}
               options={LANGUAGE_OPTIONS}
               onValueChange={(lang) => void update({ lang })}
@@ -175,7 +190,7 @@ export function createSettingsScreen(playAudio: PlayAudio) {
         <SettingsSection title="Údržba">
           <SettingsCard>
             <SettingsAction
-              label="Reštartovať server"
+              label="Reštartovať servery"
               actionLabel="Reštartovať"
               onPress={() => void restart({ reinstall: false }).then(() => status.refetch())}
             />

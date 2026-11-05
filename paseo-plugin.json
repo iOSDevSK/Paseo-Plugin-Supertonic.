@@ -1,7 +1,7 @@
 {
   "id": "supertonic",
   "name": "Supertonic",
-  "description": "Local Supertonic 3 text-to-speech for Paseo voice mode, 31 languages, fully on-device",
+  "description": "Local Supertonic 3 voice and Apple on-device speech recognition for Paseo voice mode and dictation",
   "icon": "assets/icon.png",
   "media": [],
   "requirements": {

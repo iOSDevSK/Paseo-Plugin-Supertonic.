@@ -5,6 +5,10 @@ export const SUPERTONIC_PORT = 47788;
 export const SUPERTONIC_BASE_URL = `http://127.0.0.1:${SUPERTONIC_PORT}/v1`;
 export const SUPERTONIC_MODEL = "supertonic-3";
 
+export const APPLE_STT_PORT = 47789;
+export const APPLE_STT_BASE_URL = `http://127.0.0.1:${APPLE_STT_PORT}/v1`;
+export const APPLE_STT_MODEL = "apple-dictation";
+
 export const VOICES = ["F1", "F2", "F3", "F4", "F5", "M1", "M2", "M3", "M4", "M5"] as const;
 
 export const LANGUAGES = [
@@ -48,6 +52,7 @@ export const preferences = defineSettings({
   version: 1,
   schema: z.object({
     enabled: z.boolean().default(true),
+    appleStt: z.boolean().default(true),
     voice: z.enum(VOICES).default("F1"),
     lang: z.string().default("sk"),
     speed: z.number().min(0.7).max(2).default(1.05),
@@ -67,6 +72,11 @@ export const statusRpc = defineRpc({
     message: z.string(),
     baseUrl: z.string(),
     voiceModeLinked: z.boolean(),
+    stt: z.object({
+      phase: z.enum(["loading", "ready", "error", "stopped"]),
+      message: z.string(),
+      linked: z.boolean(),
+    }),
     logTail: z.array(z.string()),
   }),
 });
