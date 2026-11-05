@@ -1,5 +1,7 @@
-import type { PluginHandlerContext } from "@getpaseo/plugin/server";
-import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
+import { execCommand, type PluginHandlerContext } from "@getpaseo/plugin/server";
+import { existsSync } from "node:fs";
+import { readFile, rename, rm, writeFile, mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   APPLE_STT_BASE_URL,
@@ -87,6 +89,44 @@ async function unlink(paseo: PaseoApi, key: SiteKey, current: Site | undefined) 
   await rm(previousFile(key), { force: true });
 }
 
+function findPaseoCli(): string | null {
+  const candidates = [
+    "/Applications/Paseo.app/Contents/Resources/bin/paseo",
+    join(homedir(), "Applications", "Paseo.app", "Contents", "Resources", "bin", "paseo"),
+    "/opt/homebrew/bin/paseo",
+    "/usr/local/bin/paseo",
+    ...(process.env.PATH ?? "").split(":").filter(Boolean).map((dir) => join(dir, "paseo")),
+  ];
+  return candidates.find((path) => existsSync(path)) ?? null;
+}
+
+// Paseo runs voice mode turn detection on its local speech worker, which it only starts when a
+// speech site is local or providers.local.modelsDir is set. With every site on the plugin's
+// servers, set that field so Paseo still notices when the user stops talking. The config RPC
+// cannot write it, so edit the file, reload it, then nudge speech reconciliation.
+async function ensureLocalSpeechWorker(paseo: PaseoApi): Promise<void> {
+  const home = process.env.PASEO_HOME || join(homedir(), ".paseo");
+  const file = join(home, "config.json");
+  const config = JSON.parse(await readFile(file, "utf8")) as {
+    providers?: { local?: { modelsDir?: string } };
+  };
+  if (config.providers?.local?.modelsDir) return;
+  const cli = findPaseoCli();
+  if (!cli) {
+    console.error("[supertonic] Paseo CLI not found; voice mode may not detect the end of speech");
+    return;
+  }
+  config.providers = {
+    ...config.providers,
+    local: { ...config.providers?.local, modelsDir: join(home, "models", "local-speech") },
+  };
+  const temp = `${file}.supertonic-${process.pid}`;
+  await writeFile(temp, `${JSON.stringify(config, null, 2)}\n`);
+  await rename(temp, file);
+  await execCommand(cli, ["reload", "--json", "--home", home], { timeout: 30_000 });
+  await paseo.config.patch({ features: { voiceMode: { turnDetection: { provider: "local" } } } } as never);
+}
+
 export interface LinkState {
   voiceModeLinked: boolean;
   sttLinked: boolean;
@@ -114,6 +154,11 @@ export async function syncVoiceConfig(
     voiceStt: preferences.appleStt && options.sttReady,
     dictationStt: preferences.appleStt && options.sttReady,
   };
+  if (Object.values(wanted).some(Boolean)) {
+    await ensureLocalSpeechWorker(paseo).catch((error) => {
+      console.error("[supertonic] Could not enable Paseo local speech worker", error);
+    });
+  }
   for (const key of Object.keys(SITES) as SiteKey[]) {
     const current = SITES[key].read(features);
     if (wanted[key]) await link(paseo, key, current, desiredSite(key, preferences));
